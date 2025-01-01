@@ -4,16 +4,16 @@ import { app } from './app.js';
 
 dotenv.config({
     path: "./.env"
-});
+})
 
-// Connect to the database
+
 connectDB()
     .then(() => {
-        console.log(`Connected to the database`);
+        app.listen(process.env.PORT || 8000, () => {
+            console.log(`Server Listening On Port :  ${process.env.PORT}`);
+        })
     })
     .catch((err) => {
-        console.error(`Error connecting to the database`, err);
-    });
+        console.error(`Error while listening on port ${process.env.PORT}`, err);
+    })
 
-// Export the app for Vercel
-export default app;
