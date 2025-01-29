@@ -88,13 +88,15 @@ const updateAppointment = asyncHandler(async (req, res) => {
 });
 
 const deleteAppointment = asyncHandler(async (req, res) => {
+
     const { id } = req.params;
     let appointment = await Appointment.findById(id)
+    
     if (!appointment) {
         throw new ApiError(404, "Appointment not found")
     }
 
-    appointment = await appointment.deleteOne()
+    appointment = await Appointment.deleteOne()
     return res.status(200)
     .json(
         new ApiResponse(

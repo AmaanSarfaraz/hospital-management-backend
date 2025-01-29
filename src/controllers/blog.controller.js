@@ -23,7 +23,7 @@ const getAllBlogs = asyncHandler(async (req, res, next) => {
             ));
 
     } catch (error) {
-        throw new ApiError(500, `something went wrong in getting all blogs ${error}`);
+        throw new ApiError(500, `something went wrong in getting all blogs ${error.message}`);
 
     }
 });
@@ -66,12 +66,6 @@ const createBlog = asyncHandler(async (req, res, next) => {
             authorType,
             image: blogImage.url
         });
-        const options = {
-          httpOnly: true,
-          secure: true,
-          path:process.env.CLIENT_URI
-  
-      }
         return res.status(200)
        .json(
         new ApiResponse(

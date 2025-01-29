@@ -68,18 +68,12 @@ const patientRegister = asyncHandler(async (req, res, next) => {
     // Generate tokens and set cookies
     const { patientAccessToken, patientRefreshToken } = await generateAccessAndRefreshToken(patient._id);
 
-    const cookieOptions = {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        path:process.env.CLIENT_URI
-    };
-
-    res.cookie('patientAccessToken', patientAccessToken, { ...cookieOptions, maxAge: 15 * 60 * 1000 }); // 15 minutes
-    res.cookie('patientRefreshToken', patientRefreshToken, { ...cookieOptions, maxAge: 7 * 24 * 60 * 60 * 1000 }); // 7 days
-
     return res.status(201).json(
-        new ApiResponse(200, createdPatient, "Patient registered successfully")
+        new ApiResponse(200, {
+            patient: createdPatient, 
+            patientAccessToken,
+            patientRefreshToken
+        },"Patient registered successfully")
     );
 });
 
@@ -104,23 +98,13 @@ const patientLogin = asyncHandler(async (req, res) => {
     const { patientAccessToken, patientRefreshToken} = await generateAccessAndRefreshToken(patient._id)
     const loggedInPatient = await Patient.findById(patient._id).select("-password -patientRefreshToken")
 
-    const options = {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        path:process.env.CLIENT_URI,
-        sameSite: 'Strict'
-    }
-
     return res.status(200)
-    .cookie('patientAccessToken', patientAccessToken, options)
-    .cookie('patientRefreshToken', patientRefreshToken, options)
     .json(
-        new ApiResponse (
-            200,
-            {
-                patient: loggedInPatient, patientAccessToken, patientRefreshToken
-            },
-            "patient logged in successfully"
+        new ApiResponse (200,{
+                patient: loggedInPatient, 
+                patientAccessToken, 
+                patientRefreshToken
+            },"patient logged in successfully"
         )
     )
 })
@@ -138,16 +122,7 @@ const patientLogout = asyncHandler(async (req, res) => {
         }
     )
 
-    const options = {
-        httpOnly: true,
-        secure: true,
-        path:process.env.CLIENT_URI
-
-    }
-
     return res.status(200)
-    .clearCookie('patientAccessToken', options)
-    .clearCookie('patientRefreshToken', options)
     .json(
         new ApiResponse (
             200,

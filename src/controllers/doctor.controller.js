@@ -110,21 +110,14 @@ const doctorLogin = asyncHandler(async (req, res) => {
     const { doctorAccessToken, doctorRefreshToken } = await generateAccessAndRefreshToken(doctor._id);
     const loggedInDoctor = await Doctor.findById(doctor._id).select("-password -doctorRefreshToken");
 
-    const options = {
-        httpOnly: true,
-        secure: true,
-        path:process.env.CLIENT_URI
-
-    }
-
     return res.status(200)
-    .cookie('doctorAccessToken', doctorAccessToken, options)
-    .cookie('doctorRefreshToken', doctorRefreshToken, options)
     .json(
         new ApiResponse (
             200,
             {
-                doctor: loggedInDoctor, doctorAccessToken, doctorRefreshToken
+                doctor: loggedInDoctor,
+                doctorAccessToken,
+                doctorRefreshToken
             },
             "Doctor logged in successfully"
         )
@@ -143,16 +136,8 @@ const doctorLogout = asyncHandler(async (req, res) => {
             new: true,
         }
     )
-    const options = {
-        httpOnly: true,
-        secure: true,
-        path:process.env.CLIENT_URI
-
-    }
 
     return res.status(200)
-    .clearCookie("doctorAccessToken", options)
-    .clearCookie("doctorRefreshToken", options)
     .json(
         new ApiResponse (
             200,

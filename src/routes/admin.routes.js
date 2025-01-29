@@ -4,7 +4,7 @@ import { upload } from '../middlewares/multer.middleware.js'
 import { verifyJWT } from '../middlewares/auth.middleware.js'
 import { deletePatient, getAllPatients } from '../controllers/patient.controller.js'
 import { getAllDoctors, getCurrentDoctor, registerDoctor, removeDoctor } from '../controllers/doctor.controller.js';
-import { getAllAppointments, updateAppointment } from '../controllers/appointment.controller.js';
+import { getAllAppointments, updateAppointment, deleteAppointment } from '../controllers/appointment.controller.js';
 import { deleteDepartment, getAllDepartments, registerDepartment, updateDepartment } from '../controllers/department.controller.js';
 import { deleteStaffMember, getAllStaffMembers, registerStaffMember } from '../controllers/staff.controller.js';
 import { addProduct, deleteProduct, updateProduct } from '../controllers/inventory.controller.js';
@@ -61,6 +61,7 @@ router.route('/doctor/delete/:id').delete(verifyJWT, removeDoctor)
 // Appointment routes
 router.route('/allappointments').get(verifyJWT, getAllAppointments)
 router.route('/appointment/update/:id').patch(verifyJWT, updateAppointment)
+router.route('/appointment/delete/:id').delete(verifyJWT, deleteAppointment)
 
 
 // department routes

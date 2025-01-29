@@ -9,60 +9,50 @@ import { uploadOnCloudinary } from '../utilis/cloudinary.js'
 const generateAccessAndRefreshToken = async (adminId) => {
     try {
         const admin = await Admin.findById(adminId);
-        const accessToken = admin.generateAccessToken();
-        const refreshToken = admin.generateRefreshToken();
+        const adminAccessToken = admin.generateAccessToken();
+        const adminRefreshToken = admin.generateRefreshToken();
 
-        admin.refreshToken = refreshToken;
+        admin.adminRefreshToken = adminRefreshToken;
         await admin.save({validateBeforeSave: false});
 
-        return { accessToken, refreshToken };
+        return { adminAccessToken, adminRefreshToken };
 
     } catch (error) {
         throw new ApiError(500, `something went wrong when generating access and refresh token`);
     }
 }
 
-const adminRegister = asyncHandler( async (req, res, next) => {
-    const {
-        username,
-        email,
-        password,
-        fullName,
-        phone,
-        gender,
-        dob
-    } = req.body;
+const adminRegister = asyncHandler(async (req, res, next) => {
+    const { username, email, password, fullName, phone, gender, dob } = req.body;
 
-    if ([username, email, password, fullName, phone, gender, dob]
-        .some((field) => field?.trim() === "")
-    ) {
-        throw new ApiError (400, 'All fields are required')
+    if ([username, email, password, fullName, phone, gender, dob].some(field => field?.trim() === "")) {
+        throw new ApiError(400, 'All fields are required');
     }
 
     const existedAdmin = await Admin.findOne({
-        $or: [{email}, {username}]
-    })
+        $or: [{ email }, { username }]
+    });
 
     if (existedAdmin) {
-        throw new ApiError (400, 'Admin already exists')
+        throw new ApiError(400, 'Admin already exists');
     }
 
-    const avatarLocalPath = req.files?.avatar?.[0]?.path
+    const avatarLocalPath = req.files?.avatar?.[0]?.path;
 
-    let coverImageLocalPath
+    let coverImageLocalPath;
     if (req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length > 0) {
-        coverImageLocalPath = req.files.coverImage[0].path
+        coverImageLocalPath = req.files.coverImage[0].path;
     }
 
     if (!avatarLocalPath) {
-        throw new ApiError (400, 'Avatar is required')
+        throw new ApiError(400, 'Avatar is required');
     }
 
-    const avatar = await uploadOnCloudinary(avatarLocalPath)
-    const coverImage = await uploadOnCloudinary(coverImageLocalPath)
+    const avatar = await uploadOnCloudinary(avatarLocalPath);
+    const coverImage = coverImageLocalPath ? await uploadOnCloudinary(coverImageLocalPath) : null;
 
     if (!avatar) {
-        throw new ApiError (400, 'Avatar is required')
+        throw new ApiError(400, 'Avatar upload failed');
     }
 
     const admin = await Admin.create({
@@ -76,77 +66,59 @@ const adminRegister = asyncHandler( async (req, res, next) => {
         avatar: avatar.url,
         coverImage: coverImage?.url || "",
         role: 'Admin'
-    })
+    });
 
-    const createdAdmin = await Admin.findById(admin._id)
-    .select("-password -refreshToken -coverImage" )
+    const createdAdmin = await Admin.findById(admin._id).select("-password -refreshToken -coverImage");
 
     if (!createdAdmin) {
-        throw new ApiError(400, 'something went wrong while registering admin')
+        throw new ApiError(400, 'Something went wrong while registering admin');
     }
 
-    const { accessToken, refreshToken } = await generateAccessAndRefreshToken(admin._id);
-
-    const cookieOptions = {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'Strict',
-        path:process.env.CLIENT_URI
-
-    };
-
-    res.cookie('accessToken', accessToken, { ...cookieOptions, maxAge: 15 * 60 * 1000 }); // 15 minutes
-    res.cookie('refreshToken', refreshToken, { ...cookieOptions, maxAge: 7 * 24 * 60 * 60 * 1000 }); // 7 days
+    // Generate tokens
+    const { adminAccessToken, adminRefreshToken } = await generateAccessAndRefreshToken(admin._id);
 
     return res.status(201).json(
-        new ApiResponse(200, createdAdmin, "Admin registered successfully")
-    )
-})
+        new ApiResponse(200, {
+            admin: createdAdmin,
+            adminAccessToken,
+            adminRefreshToken
+        }, "Admin registered successfully")
+    );
+});
 
 const adminLogin = asyncHandler(async (req, res, next) => {
-
-    const {username, email, password} = req.body;
+    const { username, email, password } = req.body;
 
     if (!(username || email)) {
-        throw new ApiError(404, 'Authentication failed username or email is required')
+        throw new ApiError(400, 'Username or email is required');
     }
 
     const admin = await Admin.findOne({
-        $or: [{email}, {username}]
-    })
+        $or: [{ email }, { username }]
+    });
 
     if (!admin) {
-        throw new ApiError(404, 'Admin not found')
+        throw new ApiError(404, 'Admin not found');
     }
 
-    const isMatch = await admin.matchPassword(password)
+    const isMatch = await admin.matchPassword(password);
     if (!isMatch) {
-        throw new ApiError(404, 'Password is incorrect')
+        throw new ApiError(400, 'Password is incorrect');
     }
 
-    const { accessToken, refreshToken } = await generateAccessAndRefreshToken(admin._id)
-    const loggedInAdmin = await Admin.findById(admin._id).select('-password -refreshToken')
+    // Generate tokens
+    const { adminAccessToken, adminRefreshToken } = await generateAccessAndRefreshToken(admin._id);
+    const loggedInAdmin = await Admin.findById(admin._id).select('-password -refreshToken');
 
-    const options = {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'Strict',  // 'Strict' or 'Lax' might be used depending on your use case
-        path: '/'
-    }
+    return res.status(200).json(
+        new ApiResponse(200, {
+            admin: loggedInAdmin,
+            adminAccessToken,
+            adminRefreshToken
+        }, "Admin logged in successfully")
+    );
+});
 
-    return res.status(200)
-    .cookie("accessToken", accessToken, options)
-    .cookie("refreshToken", refreshToken, options)
-    .json(
-        new ApiResponse (
-            200,
-            {
-                admin: loggedInAdmin, refreshToken, accessToken
-            },
-            "Admin logged in successfully"
-        )
-    )
-})
 
 const adminLogout = asyncHandler(async (req, res, next) => {
         await Admin.findByIdAndUpdate(
@@ -161,16 +133,7 @@ const adminLogout = asyncHandler(async (req, res, next) => {
         }
     )
 
-    const options = {
-        httpOnly: true,
-        secure: true,
-        path:process.env.CLIENT_URI
-
-    }
-
     return res.status(200)
-   .clearCookie("accessToken", options)
-   .clearCookie("refreshToken", options)
    .json(
         new ApiResponse (
             200,

@@ -16,7 +16,7 @@ const blogSchema = new Schema({
       },
       authorType: {
         type: String,
-        enum: ['Doctor', 'Admin', 'Patient'],
+        enum: ['doctor', 'admin', 'patient'],
         required: true,
       },
       image: {
